@@ -1,0 +1,30 @@
+name: Build and check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check timer and sand geometry
+        run: swift run CoreChecks
+      - name: Build universal macOS app
+        run: STILL_UNIVERSAL=1 bash scripts/build.sh
+      - name: Verify both architectures and signature
+        run: |
+          lipo -verify_arch arm64 x86_64 dist/余刻.app/Contents/MacOS/Still
+          codesign --verify --deep --strict dist/余刻.app
+      - name: Package app
+        run: ditto -c -k --sequesterRsrc --keepParent dist/余刻.app dist/Still-macOS-universal.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Still-macOS-universal
+          path: dist/Still-macOS-universal.zip
